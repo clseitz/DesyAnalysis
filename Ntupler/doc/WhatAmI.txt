@@ -1,0 +1,5 @@
+April 09/2012 - code for reading in TopLikeBSM PatTuples, performing a basic object selection and writing out
+                a flat tree for further analysis. Based on 
+		http://cmssw.cvs.cern.ch/cgi-bin/cmssw.cgi/UserCode/clseitz/TopBSM/RUTopXAna/?pathrev=MAIN
+		which was written for RU/OSU analysis Exo-11-56.
+Mai 06/2014 - updating code for 2015 run at Desy

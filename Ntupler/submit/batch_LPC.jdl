@@ -1,0 +1,12 @@
+OutDir = /uscms_data/d3/clseitz/ThreeJet/RUNtuple/SingleMuDataset/BHT650_SHT750
+Executable = run_LPC.sh
+universe = vanilla
+Requirements = Memory >= 199 &&OpSys == "LINUX"&& (Arch != "DUMMY" )&& Disk > 1000000
+Should_Transfer_Files = YES
+WhenToTransferOutput = ON_EXIT
+Output = $(OutDir)/Log/Log_$(Process).stdout
+Error =  $(OutDir)/Log/Log_$(Process).stderr
+Log =    $(OutDir)/Log/Log_$(Process).log
+notify_user = clseitz@physics.rutgers.edu
+Arguments = $(Process) $(OutDir)
+Queue 6

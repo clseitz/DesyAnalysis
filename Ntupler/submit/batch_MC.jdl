@@ -1,0 +1,50 @@
+OutDir = /cms/clseitz/ThreeJet/RUNtuple/Jan29ReRun_53xJES 
+universe = vanilla 
+Requirements = (Arch == "X86_64") 
+Executable = run_MC.sh 
+should_transfer_files = NO
+
+Dataset = RPV
+Flavor=113_223
+Mass=1250
+Output =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdout 
+Error  =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stderr 
+Log    =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdlog 
+Arguments = $(Dataset) $(OutDir) $(Mass) $(Flavor) $(Process) 
+Queue 20
+
+Error  =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stderr 
+Log    =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdlog 
+Arguments = $(Dataset) $(OutDir) $(Mass) $(Flavor) $(Process) 
+Queue 20
+
+Mass=750
+Output =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdout 
+Error  =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stderr 
+Log    =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdlog 
+Arguments = $(Dataset) $(OutDir) $(Mass) $(Flavor) $(Process) 
+Queue 20
+
+Mass=1000
+Output =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdout 
+Error  =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stderr 
+Log    =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdlog 
+Arguments = $(Dataset) $(OutDir) $(Mass) $(Flavor) $(Process) 
+Queue 20
+
+Mass=1250
+Output =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdout 
+Error  =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stderr 
+Log    =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdlog 
+Arguments = $(Dataset) $(OutDir) $(Mass) $(Flavor) $(Process) 
+Queue 20
+
+Mass=1500
+Output =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdout 
+Error  =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stderr 
+Log    =  $(OutDir)/$(Dataset)/RPV_M$(Mass)_$(Flavor)/Log/$(Dataset)_M$(Mass)_$(Flavor)_$(Process).stdlog 
+Arguments = $(Dataset) $(OutDir) $(Mass) $(Flavor) $(Process) 
+Queue 20
+
+
+
