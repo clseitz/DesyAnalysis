@@ -15,7 +15,7 @@ output_list=[]
 dir_list=[]
 
 ##################RPV#######################
-suffix_list = os.popen('ls -1 /cms/clseitz/ThreeJet/TLBSM/TLBSM53xv2/PAT/RPV/RPV_M750_112/*root').readlines()
+suffix_list = os.popen('ls -1 RPV_M500_112_FullSimSummer12_TLBSM53xv2_0.root_mc.root').readlines()
 #this_fin_nocfi  = "file:"+suffix_list[newInd]
 
 #this_fout0 = outdir+"/"+dataset+"/RPV_M"+mass+"_"+flavor+"/RPV_M"+mass+"_"+flavor+"_"+str(newInd)+"_plots.root"
@@ -62,7 +62,7 @@ jetcorrserv = 'ak5PFchsL1FastL2L3'
 
 ## load jet corrections
 # process.load("JetMETCorrections.Configuration.JetCorrectionServicesAllAlgos_cff")
-process.load("RUAnalysis.Ntupler.ak5PFchsJetCorrectionServices_cff")
+process.load("DesyAnalysis.Ntupler.ak5PFchsJetCorrectionServices_cff")
 process.prefer(jetcorrserv)
 
 

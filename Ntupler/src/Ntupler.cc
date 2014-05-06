@@ -3,7 +3,7 @@
 // Package:    Ntupler
 // Class:      Ntupler
 // 
-/**\class Ntupler Ntupler.cc RUAnalysis/Ntupler/src/Ntupler.cc
+/**\class Ntupler Ntupler.cc DesyAnalysis/Ntupler/src/Ntupler.cc
 
  Description: [one line class summary]
 
@@ -14,7 +14,7 @@
 // Original Author:  Claudia Seitz
 //         Created:  Mon Apr  9 12:14:40 EDT 2012
 // $Id: Ntupler.cc,v 1.28 2013/08/08 08:26:13 clseitz Exp $
-//
+// Modified for use at Desy May 2014
 //
 
 
@@ -83,8 +83,8 @@
 #include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h"
 
 //Own libraries
-#include "RUAnalysis/Ntupler/interface/Ntupler.h"
-#include "RUAnalysis/Ntupler/interface/NtpReader.h"
+#include "DesyAnalysis/Ntupler/interface/Ntupler.h"
+#include "DesyAnalysis/Ntupler/interface/NtpReader.h"
 #include <memory>
 #include <sstream>
 #include <stdlib.h>

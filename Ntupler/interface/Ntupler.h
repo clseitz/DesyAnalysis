@@ -40,7 +40,7 @@
 #include "DataFormats/EgammaReco/interface/SuperClusterFwd.h"
 #include "DataFormats/CaloTowers/interface/CaloTowerDetId.h"
 
-#include "RUAnalysis/Ntupler/interface/NtpReader.h"
+#include "DesyAnalysis/Ntupler/interface/NtpReader.h"
 
 
 using namespace std;
