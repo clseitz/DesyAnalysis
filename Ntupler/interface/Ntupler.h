@@ -78,7 +78,7 @@ class Ntupler : public edm::EDAnalyzer, public NtpReader {
   void DoMuonID(const edm::Event&);
   void DoPhotonID(const edm::Event&);
   void DoMETID(const edm::Event&);
-  void DoCleanUp(vector<Muon >fGoodMuons,vector<Electron >fGoodElectrons,vector<Photon >fGoodPhotons,vector<Jet >fGoodJets);
+  void DoCleanUp(vector<Muon >fGoodMuons,vector<pat::Electron >fGoodElectrons,vector<Photon >fGoodPhotons,vector<Jet >fGoodJets);
   void GetPFIso(vector<Muon >fCleanMuons);
   void GetMCTruth(const edm::Event&);
   void MakeTriplets(std::vector<pat::Jet >fCleanJets); 
@@ -119,7 +119,8 @@ class Ntupler : public edm::EDAnalyzer, public NtpReader {
   std::map<std::string, bool>       fTriggerMap;
   std::map<std::string, bool>       fTriggerMap2;
   std::map<std::string, bool>       fTriggerMapBase2;
-  
+  edm::InputTag               _rhoIsoInputTag;
+  std::vector<edm::InputTag>  _isoValInputTags;
   int countE;  
   
   TFile* NtuplePlots; 
@@ -167,6 +168,8 @@ class Ntupler : public edm::EDAnalyzer, public NtpReader {
 
   TH1F* h_nCleanPFJets;
   TH1F* h_nGoodPFJets;
+  TH1F* h_nGoodJets;
+  TH1F* h_nCleanJets;
   TH1F* h_nCleanCA8PFJets;
   TH1F* h_nGoodCA8PFJets;
   TH1F* h_nCleanCA8PrunedPFJets;
@@ -183,6 +186,9 @@ class Ntupler : public edm::EDAnalyzer, public NtpReader {
   TH1F* h_DiElectronMass;
   TH1F* h_DiMuonMass;
   TH1F* h_ElectronMuonMass;
+
+
+  typedef std::vector< edm::Handle< edm::ValueMap<double> > > IsoDepositVals;
   
   //redefining everything with vectors
   vector <string > VarList;

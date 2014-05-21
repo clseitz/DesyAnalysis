@@ -59,6 +59,13 @@
 
 #include "TTree.h"
 
+//NEW
+#include "DataFormats/MuonReco/interface/MuonSelectors.h"
+#include "DataFormats/VertexReco/interface/Vertex.h"
+#include "DataFormats/RecoCandidate/interface/IsoDeposit.h"
+#include "EgammaAnalysis/ElectronTools/interface/EGammaCutBasedEleId.h"
+#include "EgammaAnalysis/ElectronTools/interface/ElectronEffectiveArea.h"
+#include "RecoEgamma/EgammaTools/interface/ConversionTools.h"
 
 
 #include "DataFormats/PatCandidates/interface/Electron.h" 
@@ -158,7 +165,8 @@ Ntupler::Ntupler(const edm::ParameterSet& iConfig)
   _nTripletBtagsMin= iConfig.getUntrackedParameter<int>   ("nTripletBtagsMin", 0);
   _nTripletBtagsMax= iConfig.getUntrackedParameter<int>   ("nTripletBtagsMax", 1000);
   _doBtagEff       = iConfig.getUntrackedParameter<bool>   ("doBtagEff", true);
-
+  _rhoIsoInputTag  = iConfig.getParameter<edm::InputTag>("rhoIsoInputTag");
+   _isoValInputTags        = iConfig.getParameter<std::vector<edm::InputTag> >("isoValInputTags"); 
   fTriggerNamesSel = iConfig.getUntrackedParameter<std::vector<std::string> >("TriggerNamesSel", std::vector<std::string>());
   for (std::vector<std::string>::iterator It = fTriggerNamesSel.begin(); It != fTriggerNamesSel.end(); ++It) {
     fTriggerMap[*It] = false;
@@ -337,50 +345,60 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
        edm::Handle< std::vector<pat::Jet> > fCleanPFJets;
        iEvent.getByLabel(_patJetType[0], fCleanPFJets);
        // edm::Handle< std::vector<pat::Jet> > fGoodCA8PFJets;
-       // edm::Handle< std::vector<pat::Jet> > fCleanCA8PFJets;
-       //iEvent.getByLabel(_patJetType[1], fCleanCA8PFJets);
+       edm::Handle< std::vector<pat::Jet> > fCleanCA8PFJets;
+       iEvent.getByLabel(_patJetType[1], fCleanCA8PFJets);
        //need as PAT to get btag stuff
-       // edm::Handle< std::vector<pat::Jet> > fGoodCA8PrunedPFJets;
-       //edm::Handle< std::vector<pat::Jet> > fCleanCA8PrunedPFJets;
-       //iEvent.getByLabel(_patJetType[2], fCleanCA8PrunedPFJets);
+       //   edm::Handle< std::vector<pat::Jet> > fGoodCA8PrunedPFJets;
+       edm::Handle< std::vector<pat::Jet> > fCleanCA8PrunedPFJets;
+     iEvent.getByLabel(_patJetType[2], fCleanCA8PrunedPFJets);
        
        
        ////////////////////
        if(!_isData) GetTruePileUp(iEvent);
        
        DoVertexID(iEvent);
+       cout<<"before jetid"<<endl;
+       DoJetID(iEvent, iSetup, _patJetType[0]);
+       cout<<"after jetid"<<endl;
        DoElectronID(iEvent);
+       cout<<"after eleid"<<endl;
        DoMuonID(iEvent);
+       cout<<"after muid"<<endl;
        //Photons are not implemented at the moment
        //DoPhotonID(iEvent);
        DoMETID(iEvent);
+       cout<<"after metid"<<endl;
        ///////REMOVE OVERLAP IN OCJECT COLLECTION
        //make some plots before cleanup 
-       h_nGoodPFJets->Fill(nGoodPFJets);
+       h_nGoodPFJets->Fill(nGoodPFJets);       
+       h_nGoodJets->Fill(nGoodJets);
        h_nGoodCA8PFJets->Fill(nGoodCA8PFJets);
        h_nGoodCA8PrunedPFJets->Fill(nGoodCA8PrunedPFJets);
 
        h_nGoodElectrons->Fill(nGoodElectrons);  
        h_nGoodMuons->Fill(nGoodMuons);
        h_nGoodPhotons->Fill(nGoodPhotons);
+       cout<<"before cleanup"<<endl;
        ///////////////////////////////////////////////////
-       //DoCleanUp(fGoodMuons,fGoodElectrons,fGoodPhotons,fGoodJets);
-       fCleanMuons = fGoodMuons;
+       DoCleanUp(fGoodMuons,fGoodElectrons,fGoodPhotons,fGoodJets);
+       cout<<"after cleanup"<<endl;
+       /*fCleanMuons = fGoodMuons;
        fCleanElectrons = fGoodElectrons;
        fCleanPhotons= fGoodPhotons;
        nCleanMuons = nGoodMuons; 
        nCleanElectrons = nGoodElectrons;
        nCleanPhotons= nGoodPhotons;
-       
+       */
        nCleanPFJets= fCleanPFJets->size();
-        nCleanCA8PFJets= 5;//fCleanCA8PFJets->size();
-       nCleanCA8PrunedPFJets= 5;//fCleanCA8PrunedPFJets->size();
+        nCleanCA8PFJets=fCleanCA8PFJets->size();
+       nCleanCA8PrunedPFJets= fCleanCA8PrunedPFJets->size();
        ///////////////////////////////////////////////
        //make plots after the clean up
        
        h_nCleanElectrons->Fill(nCleanElectrons);
        h_nCleanMuons->Fill(nCleanMuons);
        h_nCleanPhotons->Fill(nCleanPhotons);
+       h_nCleanJets->Fill(nCleanJets);
        h_nCleanPFJets->Fill(nCleanPFJets);
        h_nCleanCA8PFJets->Fill(nCleanCA8PFJets);
        h_nCleanCA8PrunedPFJets->Fill(nCleanCA8PrunedPFJets);
@@ -544,7 +562,7 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   nCA8PFJets=nCleanCA8PFJets;
 
        i=0;
-       /* for (std::vector<pat::Jet>::const_iterator Jet = fCleanCA8PFJets->begin(); Jet != fCleanCA8PFJets->end(); ++Jet) {       
+       for (std::vector<pat::Jet>::const_iterator Jet = fCleanCA8PFJets->begin(); Jet != fCleanCA8PFJets->end(); ++Jet) {       
 	 if(i<6){
 	   v_CA8PFjet_pt[i]->Fill(Jet->pt()); 
 	   v_CA8PFjet_eta[i]->Fill(Jet->eta()); 
@@ -573,10 +591,10 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	 //	 cout<<Jet->numberOfDaughters()<<endl;
 	 i++;
        }
-       */
+     
        nCA8PrunedPFJets=nCleanCA8PrunedPFJets;
        i=0;
-       /*for (std::vector<pat::Jet>::const_iterator Jet = fCleanCA8PrunedPFJets->begin(); Jet != fCleanCA8PrunedPFJets->end(); ++Jet) {       
+       for (std::vector<pat::Jet>::const_iterator Jet = fCleanCA8PrunedPFJets->begin(); Jet != fCleanCA8PrunedPFJets->end(); ++Jet) {       
 	 if(i<6){
 	   v_CA8PrunedPFjet_pt[i]->Fill(Jet->pt()); 
 	   v_CA8PrunedPFjet_eta[i]->Fill(Jet->eta()); 
@@ -604,6 +622,7 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	 bdiscSSSVHP_CA8PrunedPF[i]=Jet->bDiscriminator("simpleSecondaryVertexHighPurBJetTags");
 	 bdiscCSV_CA8PrunedPF[i]=Jet->bDiscriminator("combinedSecondaryVertexBJetTags");
 	 bdiscJP_CA8PrunedPF[i]=Jet->bDiscriminator("jetProbabilityBJetTags");
+
 	 if(Jet->numberOfDaughters() >=2){
 	 reco::Jet const * subjet0 = dynamic_cast<reco::Jet const *>(Jet->daughter(0));
 	 reco::Jet const * subjet1 = dynamic_cast<reco::Jet const *>(Jet->daughter(1));
@@ -630,15 +649,17 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
 
 	   
+	 cout<<"Allthe masses "<<jet_CA8PrunedPF_nJetDaughters[i]<<" "<<subjet0->mass()<<endl;   
 	 }
-	 	 cout<<"Allthe masses "<<jet_CA8PrunedPF_nJetDaughters[i]<<" "<<subjet0->mass()<<endl;   
+	 	 
 	     for(int k =0; k<jet_CA8PrunedPF_nJetDaughters[i];k++){
 	       reco::Jet const * subjetk = dynamic_cast<reco::Jet const *>(Jet->daughter(k));
 	     cout<<subjetk->mass()<<endl;   
 	     }
 	 
 	 i++;
-	 }*/
+	 }
+
        nElectrons=nCleanElectrons;
        for(int i=0; i<nCleanElectrons; i++){
 	 if(i<6){
@@ -773,10 +794,18 @@ Ntupler::beginJob()
   h_nGoodVtx = new TH1F("nVtx","Number of Vertices",30,0,30);
   h_zPosGoodVtx = new TH1F("zPosCleanVtx","Z position of the vertices",600,-30,30);
   //some plots to check on, before object cleaning
+  sprintf(hTITLE, "Number of good Jet with Pt>%i and Eta<%i", (int) _jetptcut,(int) _etacut);
+  h_nGoodJets = new TH1F("nJetsGood", hTITLE,20,0,20);
+
+  sprintf(hTITLE, "Number of clean Jet with Pt>%i and Eta<%i", (int) _jetptcut,(int) _etacut);
+  h_nCleanJets = new TH1F("nJetsClean", hTITLE,20,0,20);
+
   sprintf(hTITLE, "Number of good PF Jet with Pt>%i and Eta<%i", (int) _jetptcut,(int) _etacut);
   h_nGoodPFJets = new TH1F("nPFJetsGood", hTITLE,20,0,20);
+
   sprintf(hTITLE, "Number of good CA8PF Jet with Pt>%i and Eta<%i", (int) _jetptcut,(int) _etacut);
   h_nGoodCA8PFJets = new TH1F("nCA8PFJetsGood", hTITLE,20,0,20);
+
   sprintf(hTITLE, "Number of good CA8PrunedPF Jet with Pt>%i and Eta<%i", (int) _jetptcut,(int) _etacut);
   h_nGoodCA8PrunedPFJets = new TH1F("nCA8PrunedPFJetsGood", hTITLE,20,0,20);
 
@@ -789,8 +818,10 @@ Ntupler::beginJob()
   sprintf(hTITLE, "Number of good Photons with Pt>%i and Eta<%i", (int) _phpt,(int) _pheta);
   h_nGoodPhotons = new TH1F("nPhotonsGood", hTITLE,10,0,10);
   //after object cleaning
+
   sprintf(hTITLE, "Number of clean PF Jet with Pt>%i and Eta<%i", (int) _jetptcut,(int) _etacut);
   h_nCleanPFJets = new TH1F("nPFJetsClean", hTITLE,20,0,20);
+
   sprintf(hTITLE, "Number of clean CA8PF Jet with Pt>%i and Eta<%i", (int) _jetptcut,(int) _etacut);
   h_nCleanCA8PFJets = new TH1F("nCA8PFJetsClean", hTITLE,20,0,20);
   sprintf(hTITLE, "Number of clean CA8PrunedPF Jet with Pt>%i and Eta<%i", (int) _jetptcut,(int) _etacut);
@@ -919,6 +950,8 @@ Ntupler::endJob()
   NtuplePlots->cd();
   NtuplePlots->mkdir("Jets");
   NtuplePlots->cd("Jets");
+  h_nGoodJets->Write();
+  h_nCleanJets->Write();
   h_nGoodPFJets->Write();
   h_nCleanPFJets->Write();
   h_nGoodCA8PFJets->Write();
@@ -1266,209 +1299,141 @@ Ntupler::DoVertexID(const edm::Event& iEvent){
   // cout<< "Vertices " << CountVtx<<" "<< recVtxs->size()<<endl;
 }
 
-void 
+
+
+void
 Ntupler::DoElectronID(const edm::Event& iEvent){
 
   // Get the PF electrons
   edm::Handle< std::vector<pat::Electron> > PatElectrons;
-  iEvent.getByLabel("selectedPatElectronsPFlow", PatElectrons);
+  iEvent.getByLabel("selectedPatElectrons", PatElectrons);
 
   // Will need the vertices
-  edm::Handle<reco::VertexCollection>  primaryVertices;
+  edm::Handle<reco::VertexCollection> primaryVertices;
   iEvent.getByLabel(_primaryVertex, primaryVertices);
 
   // Loop over all electrons
   for (std::vector<pat::Electron>::const_iterator Electron = PatElectrons->begin(); Electron != PatElectrons->end(); ++Electron) {
 
-    // Grab the PF caldidate reference
-    //    reco::PFCandidateRef PFElectron = Electron->pfCandidateRef();
+    //calculate isolation
+    edm::Handle<double> rhoHandle;
+    iEvent.getByLabel(_rhoIsoInputTag, rhoHandle);
+    double rhoIso = std::max(*(rhoHandle.product()), 0.0);
+    double scEta = Electron->superCluster()->eta();
+    double AEff = ElectronEffectiveArea::GetElectronEffectiveArea(ElectronEffectiveArea::kEleGammaAndNeutralHadronIso03, scEta, ElectronEffectiveArea::kEleEAData2012);
+    double chIso = Electron->userIsolation(pat::PfChargedHadronIso);
+    double nhIso = Electron->userIsolation(pat::PfNeutralHadronIso);
+    double phIso = Electron->userIsolation(pat::PfGammaIso);
+    double relIso = ( chIso + max(0.0, nhIso + phIso - rhoIso*AEff) )/ Electron->ecalDrivenMomentum().pt(); 
 
-    // Get the PFGamma isolation
-    float PFGammaIso = -999;
-    const reco::IsoDeposit * PFGammaIsolation = Electron->isoDeposit(pat::PfGammaIso);
-    if (PFGammaIsolation) {
-      PFGammaIso = PFGammaIsolation->depositWithin(0.3);
-    } else {
-      std::cerr << "ERROR: Cannot find pat::PfGammaIso" << std::endl;
-    }
+    edm::Handle<reco::BeamSpot> bsHandle;
+    iEvent.getByLabel("offlineBeamSpot", bsHandle);
+    const reco::BeamSpot &beamspot = *bsHandle.product();
+    
+    edm::Handle<reco::ConversionCollection> hConversions;
+    iEvent.getByLabel("allConversions", hConversions);
+    
 
-    // Get the PFNeutralHad isolation
-    float PFNeutralHadronIso = -999;
-    const reco::IsoDeposit * PFNeutralHadronIsolaton = Electron->isoDeposit(pat::PfNeutralHadronIso);
-    if (PFNeutralHadronIsolaton) {
-      PFNeutralHadronIso = PFNeutralHadronIsolaton->depositWithin(0.3);
-    } else {
-      std::cerr << "ERROR: Cannot find pat::PfNeutralHadronIso" << std::endl;
-    }
+    reco::GsfElectron const *gsfele = dynamic_cast<reco::GsfElectron const *>((Electron->originalObjectRef().get()));
 
-    // Get the PFChargedHad isolation
-    float PFChargedHadronIso = -999;
-    const reco::IsoDeposit * PFChargedHadronIsolaton = Electron->isoDeposit(pat::PfChargedHadronIso);
-    if (PFChargedHadronIsolaton) {
-      PFChargedHadronIso = PFChargedHadronIsolaton->depositWithin(0.3);
-    } else {
-      std::cerr << "ERROR: Cannot find pat::PfChargedHadronIso" << std::endl;
-    }
-
-    // The isolation we will use for selection
-    float const PFIso = (PFGammaIsolation && PFNeutralHadronIsolaton && PFChargedHadronIsolaton) ?
-      (PFGammaIso + PFNeutralHadronIso + PFChargedHadronIso) / Electron->pt() : 99999;
-
-
-    // find minimum distance to a prim vert
-    float minVtxDist3D = 999;
-    float vtxDistZ = 999;
-    if (primaryVertices.isValid()) {
-      for (reco::VertexCollection::const_iterator v_it = primaryVertices->begin(); v_it != primaryVertices->end(); ++v_it) {
-
-        double distXY = Electron->gsfTrack()->dxy(v_it->position());
-        double distZ =  Electron->gsfTrack()->dz(v_it->position());
-        double dist3D = sqrt(pow(distXY, 2) + pow(distZ, 2));
-
-        if (dist3D < minVtxDist3D) {
-          minVtxDist3D = dist3D;
-          vtxDistZ = distZ;
-        }
-      }
-    }
+    bool isconversion = ConversionTools::hasMatchedConversion( *gsfele , hConversions, beamspot.position());
+    cout<<"conversion : "<<isconversion<<endl;
+   
 
     // Global cuts
-    if (PFIso > 0.1) continue;
+    if (relIso > 0.15) continue;
     if (Electron->pt() < 20.0) continue;
     if (fabs(Electron->superCluster()->eta()) > 2.5) continue;
-    if (fabs(Electron->superCluster()->eta()) > 1.4442 && fabs(Electron->superCluster()->eta())< 1.566) continue;
-    //if (fabs(Electron->gsfTrack()->d0()) > 0.02) continue;
+    //  if (fabs(Electron->superCluster()->eta()) > 1.4442 && fabs(Electron->superCluster()->eta())< 1.566) continue;
     if (fabs(Electron->gsfTrack()->dxy((*primaryVertices)[0].position())) > 0.02) continue;
-    if (vtxDistZ > 1.0) continue;
+   
 
 
     // Barrel & endcap.. if in between say bye bye
-    if (fabs(Electron->superCluster()->eta()) < 1.4442) {
+    if (fabs(Electron->superCluster()->eta()) < 1.479) {
       if (Electron->scSigmaIEtaIEta() > 0.01) continue;
-      if (fabs(Electron->deltaPhiSuperClusterTrackAtVtx()) > 0.03) continue;
+      if (fabs(Electron->deltaPhiSuperClusterTrackAtVtx()) > 0.06) continue;
       if (fabs(Electron->deltaEtaSuperClusterTrackAtVtx()) > 0.004) continue;
-      if (Electron->hcalOverEcal() > 0.025) continue;
-    } else if (fabs(Electron->superCluster()->eta()) > 1.566) {
+      if (Electron->hcalOverEcal() > 0.12) continue;
+    } else if (fabs(Electron->superCluster()->eta()) > 1.479) {
       if (Electron->scSigmaIEtaIEta() > 0.03) continue;
-      if (fabs(Electron->deltaPhiSuperClusterTrackAtVtx()) > 0.02) continue;
-      if (fabs(Electron->deltaEtaSuperClusterTrackAtVtx()) > 0.005) continue;
-      if (Electron->hcalOverEcal() > 0.025) continue;
+      if (fabs(Electron->deltaPhiSuperClusterTrackAtVtx()) > 0.03) continue;
+      if (fabs(Electron->deltaEtaSuperClusterTrackAtVtx()) > 0.007) continue;
+      if (Electron->hcalOverEcal() > 0.1) continue;
     } else {
       // crackhead
-      std::cerr << "ERROR: Electron selection.  you should never see this message" << std::endl;
+      std::cerr << "ERROR: Electron selection. you should never see this message" << std::endl;
       continue;
     }
 
-    // Spike clean: kTime || kWeird || kBad  
-    if(Electron->userInt("electronUserData:seedSeverityLevel")==3 || Electron->userInt("electronUserData:seedSeverityLevel")==4 
+    // Spike clean: kTime || kWeird || kBad
+    if(Electron->userInt("electronUserData:seedSeverityLevel")==3 || Electron->userInt("electronUserData:seedSeverityLevel")==4
        || Electron->userInt("electronUserData:seedSeverityLevel")==5) continue;
 
     //coversion
-    const reco::Track *eleTrk = (const reco::Track*)( Electron->gsfTrack().get());  
-    const reco::HitPattern& p_inner = eleTrk->trackerExpectedHitsInner(); 
+    const reco::Track *eleTrk = (const reco::Track*)( Electron->gsfTrack().get());
+    const reco::HitPattern& p_inner = eleTrk->trackerExpectedHitsInner();
     int NumberOfExpectedInnerHits = p_inner.numberOfHits();
 
-    //If NumberOfExpectedInnerHits is greater than 1, then the electron is 
+    //If NumberOfExpectedInnerHits is greater than 1, then the electron is
     //vetoed as from a converted photon and should be rejected in an analysis looking for prompt photons.
-    if (NumberOfExpectedInnerHits != 0) continue;
+    if (NumberOfExpectedInnerHits != 1) continue;
     if (fabs(Electron->convDist()) < 0.02 && fabs(Electron->convDcot()) < 0.02) continue;
+    
+    // static bool hasMatchedConversion(const reco::GsfElectron &ele,
+    //				     const edm::Handle<reco::ConversionCollection> &convCol, const math::XYZPoint &beamspot, 
+    //				     bool allowCkfMatch=true, float lxyMin=2.0, float probMin=1e-6, uint nHitsBeforeVtxMax=0);
 
     //passes electron Id
     fGoodElectrons.push_back(*Electron);
     nGoodElectrons++;
 
 
-  } // pat electron loop     
+  } // pat electron loop
 
   return;
 }
 
+
+
+
+
+
+
+
+
+
 void
 Ntupler::DoMuonID(const edm::Event& iEvent){
-
+  
   // Get muon collection
   edm::Handle< std::vector<pat::Muon> > PatMuons; 
-  iEvent.getByLabel("selectedPatMuonsPFlow", PatMuons);
-  //  iEvent.getByLabel("selectedPatMuonsLoosePFlow", PatMuons);
-
-  //also get the vertices for some cuts
-  edm::Handle<reco::VertexCollection>  recVtxs;
-  iEvent.getByLabel( _primaryVertex, recVtxs);
-
-  // Will need the vertices
+  iEvent.getByLabel("selectedPatMuons", PatMuons);
+  
   edm::Handle<reco::VertexCollection>  primaryVertices;
   iEvent.getByLabel( _primaryVertex, primaryVertices);
-
-  // Loop over all Muons 
+  
+  
   for (std::vector<pat::Muon>::const_iterator Muon = PatMuons->begin(); Muon != PatMuons->end(); ++Muon) {
-
-    // Very first check that this is a global muon so tracking doesn't barf
-    if (!Muon->isGlobalMuon()) continue;
-
-    // Grab the PF caldidate reference
-    //reco::PFCandidateRef PFMuon = Muon->pfCandidateRef();
-
-    // Get the PFGamma isolation
-    // float PFGammaIso = -999;
-    const reco::IsoDeposit * PFGammaIsolation = Muon->isoDeposit(pat::PfGammaIso);
-    if (PFGammaIsolation) {
-      // PFGammaIso = PFGammaIsolation->depositWithin(0.3);
-    } else {
-      std::cerr << "ERROR: Cannot find pat::PfGammaIso" << std::endl;
-    }
-
-    // Get the PFNeutralHad isolation
-    // float PFNeutralHadronIso = -999;
-    const reco::IsoDeposit * PFNeutralHadronIsolaton = Muon->isoDeposit(pat::PfNeutralHadronIso);
-    if (PFNeutralHadronIsolaton) {
-      // PFNeutralHadronIso = PFNeutralHadronIsolaton->depositWithin(0.3);
-    } else {
-      std::cerr << "ERROR: Cannot find pat::PfNeutralHadronIso" << std::endl;
-    }
-
-    // Get the PFChargedHad isolation
-    // float PFChargedHadronIso = -999;
-    const reco::IsoDeposit * PFChargedHadronIsolaton = Muon->isoDeposit(pat::PfChargedHadronIso);
-    if (PFChargedHadronIsolaton) {
-      // PFChargedHadronIso = PFChargedHadronIsolaton->depositWithin(0.3);
-    } else {
-      std::cerr << "ERROR: Cannot find pat::PfChargedHadronIso" << std::endl;
-    }
-
-    // The isolation we will use for selection
-    // float const PFIso = (PFGammaIsolation && PFNeutralHadronIsolaton && PFChargedHadronIsolaton) ?
-      // (PFGammaIso + PFNeutralHadronIso + PFChargedHadronIso) / Muon->pt() : 99999;
-
-    // find minimum distance to a prim vert
-    float minVtxDist3D = 999;
-    float vtxDistZ = 999;
-    if (primaryVertices.isValid()) {
-      for (reco::VertexCollection::const_iterator v_it = primaryVertices->begin(); v_it != primaryVertices->end(); ++v_it) {
-
-        double distXY = Muon->globalTrack()->dxy(v_it->position());
-        double distZ =  Muon->globalTrack()->dz(v_it->position());
-        double dist3D = sqrt(pow(distXY, 2) + pow(distZ, 2));
-
-        if (dist3D < minVtxDist3D) {
-          minVtxDist3D = dist3D;
-          vtxDistZ = distZ;
-        }
-      }
-    }
-
-    // global cuts
-    // if (PFIso > 0.1) continue;
-    // if (Muon->pt() < 20.0) continue;
-    if (fabs(Muon->eta()) > 2.1) continue;
-    if (fabs(Muon->globalTrack()->dxy((*primaryVertices)[0].position())) > 0.02) continue;
-    if (vtxDistZ > 1.0) continue;
-
-    fGoodMuons.push_back(*Muon);
-
-    nGoodMuons++;
+    float pfIsoCharged = Muon->pfIsolationR03().sumChargedHadronPt;
+    float pfIsoNeutral = Muon->pfIsolationR03().sumNeutralHadronEt;
+    float pfIsoPhoton  = Muon->pfIsolationR03().sumPhotonEt;
+    float pfIsoPU      = Muon->pfIsolationR03().sumPUPt;      
+    float  absoluteIsolation = pfIsoCharged + max((float) 0.0,(float) (pfIsoNeutral + pfIsoPhoton- 0.5*pfIsoPU ));
+    cout<<"pfIsoCharged: "<<pfIsoCharged<<" pfIsoNeutral: "<<pfIsoNeutral<<"  pfIsoPhoton: "<<pfIsoPhoton<<" pfIsoPU: "<<pfIsoPU<<" absoluteIsolation: "<< absoluteIsolation<<endl;
+    cout<<" pT: "<< Muon->pt() << " eta: "<< fabs(Muon->eta()) << " reliso: "<< absoluteIsolation/Muon->pt()<<endl;
+    //Muond ID:
+    if ( !muon::isTightMuon(*Muon,(*primaryVertices)[0]) ) continue;
+    if ( Muon->pt() < 10.0 ) continue;
+    if ( fabs(Muon->eta()) > 2.4 ) continue;
+    if ( absoluteIsolation > 5.0 ) continue;
+    if ( absoluteIsolation/Muon->pt() > 0.15 ) continue;
+    cout<<"bbbbbblllllllllllllllllll"<<endl;
+      fGoodMuons.push_back(*Muon);    
+      nGoodMuons++;
     
   }
-
+  
   return;
 }
 
@@ -1525,7 +1490,7 @@ Ntupler::DoMETID(const edm::Event& iEvent){
   return;
 }
 void
-Ntupler::DoCleanUp(vector<Muon >fGoodMuons,vector<Electron >fGoodElectrons,vector<Photon >fGoodPhotons,vector<Jet >fGoodJets){
+Ntupler::DoCleanUp(vector<pat::Muon >fGoodMuons,vector<pat::Electron >fGoodElectrons,vector<pat::Photon >fGoodPhotons,vector<pat::Jet >fGoodJets){
   for (size_t im = 0; im != fGoodMuons.size(); ++im) {
     fCleanMuons.push_back(fGoodMuons[im] );
     nCleanMuons++;
