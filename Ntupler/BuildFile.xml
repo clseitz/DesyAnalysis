@@ -3,9 +3,11 @@
 <use name="FWCore/ParameterSet" />
 <use name="DataFormats/Common"/>
 <use name="DataFormats/PatCandidates"/>
+<use name="DataFormats/MuonReco"/>
 <use name="CondFormats/JetMETObjects"/>
 <use name="JetMETCorrections/Objects"/>
 <use  name="SimDataFormats/PileupSummaryInfo"/>
+<use  name="EgammaAnalysis/ElectronTools"/>
 <use name="root" />
 <export>
    <lib name="1"/>
