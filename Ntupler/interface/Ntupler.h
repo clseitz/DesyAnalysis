@@ -132,7 +132,7 @@ class Ntupler : public edm::EDAnalyzer, public NtpReader {
   vector<int > GoodRuns;
   vector<int > GoodLumiStart;
   vector<int >  GoodLumiEnd;
-     std::vector<pat::Jet>  fCleanPFJets;  
+
 
   Int_t nGoodRuns;  
   Bool_t GoodRun;
@@ -209,12 +209,12 @@ class Ntupler : public edm::EDAnalyzer, public NtpReader {
   std::vector<pat::Jet >      fCleanJets;
 
 
-  //  std::vector<pat::Jet >      fGoodPFJets;
-  //std::vector<pat::Jet >      fCleanPFJets;
-  //std::vector<pat::Jet >      fGoodCA8PFJets;
-  //std::vector<pat::Jet >      fCleanCA8PFJets;
-  //std::vector<pat::Jet >      fGoodCA8PrunedPFJets;
-  //std::vector<pat::Jet >      fCleanCA8PrunedPFJets;
+  std::vector<pat::Jet >      fGoodPFJets;
+  std::vector<pat::Jet >      fCleanPFJets;
+  std::vector<pat::Jet >      fGoodCA8PFJets;
+  std::vector<pat::Jet >      fCleanCA8PFJets;
+  std::vector<pat::Jet >      fGoodCA8PrunedPFJets;
+  std::vector<pat::Jet >      fCleanCA8PrunedPFJets;
   std::vector<pat::Jet >      fBJets;
   std::vector<pat::Jet >      fNoBJets;
   //electron collection
