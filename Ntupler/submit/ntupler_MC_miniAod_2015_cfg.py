@@ -5,7 +5,8 @@ import os,sys
 #this_fin_nocfi  = "file:../../../PhysicsTools/PatAlgos/test/miniAOD/patTuple_mini.root"
 
 
-this_fin_nocfi  = "file:/nfs/dust/cms/user/clseitz/MiniAOD/Files/TT_Tune4C_13TeV-pythia8-tauola_PAT.root"
+#this_fin_nocfi  = "file:/nfs/dust/cms/user/clseitz/MiniAOD/Files/TT_Tune4C_13TeV-pythia8-tauola_PAT.root"
+this_fin_nocfi  = "file:/nfs/dust/cms/user/clseitz/MiniAOD/Files/TT_Tune4C_13TeV-pythia8-tauola-PU_S14_PAT.root"
 #this_fin_nocfi  = "file:/nfs/dust/cms/user/clseitz/MiniAOD/Files/DYJetsToLL_M-50_13TeV-madgraph-pythia8_PAT.root"
 #this_fin_nocfi  = "file:/nfs/dust/cms/user/clseitz/MiniAOD/CMSSW_7_0_4/src/PhysicsTools/PatAlgos/test/miniAOD/miniAOD-prod_PAT.root"
 

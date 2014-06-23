@@ -2,7 +2,7 @@ import FWCore.ParameterSet.Config as cms
 import string
 import os,sys
 
-this_fin_nocfi  = "file:/nfs/dust/cms/user/clseitz/B2G/CMSSW_5_3_14_patch2/src/TopQuarkAnalysis/TopPairBSM/test/tlbsm_53x_v3_mc.root"
+this_fin_nocfi  = "file:../../../PhysicsTools/PatAlgos/test/miniAOD/patTuple_mini.root"
 
 this_fout0 = "test_plots.root"
 this_fout1 = "test_tree.root"
