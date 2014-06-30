@@ -179,6 +179,8 @@ void NtpReader::SetBranches (TTree* Tree)
   Tree->Branch("ee[nElectrons]", ee);
   Tree->Branch("ept[nElectrons]", ept);
   Tree->Branch("echarge[nElectrons]", echarge);
+  Tree->Branch("ePFrelIso[nElectrons]", ePFrelIso);
+  Tree->Branch("ePFabsIso[nElectrons]", ePFabsIso);
 
 
   Tree->Branch("mpx[nMuons]", mpx);
@@ -187,7 +189,8 @@ void NtpReader::SetBranches (TTree* Tree)
   Tree->Branch("me[nMuons]", me);
   Tree->Branch("mpt[nMuons]", mpt);
   Tree->Branch("mcharge[nMuons]", mcharge);
-  Tree->Branch("mPFIso[nMuons]", mPFIso);
+  Tree->Branch("mPFrelIso[nMuons]", mPFrelIso);
+  Tree->Branch("mPFabsIso[nMuons]", mPFabsIso);
 
 
   Tree->Branch("phpt[nPhotons]", phpt);
@@ -330,7 +333,7 @@ void NtpReader::SetBranchAddresses ()
   fChain.SetBranchAddress("ee[nElectrons]", ee);
   fChain.SetBranchAddress("ept[nElectrons]", ept);
   fChain.SetBranchAddress("echarge[nElectrons]", echarge);
-
+  fChain.SetBranchAddress("ePFabsIso[nElectrons]", ePFabsIso);
 
   fChain.SetBranchAddress("mpt[nMuons]", mpt);
   fChain.SetBranchAddress("mpx[nMuons]", mpx);
@@ -338,7 +341,8 @@ void NtpReader::SetBranchAddresses ()
   fChain.SetBranchAddress("mpz[nMuons]", mpz);
   fChain.SetBranchAddress("me[nMuons]", me);
   fChain.SetBranchAddress("mcharge[nMuons]", mcharge);
-  fChain.SetBranchAddress("mPFIso[nMuons]", mPFIso);
+  fChain.SetBranchAddress("mPFrelIso[nMuons]", mPFrelIso);
+  fChain.SetBranchAddress("mPFabsIso[nMuons]", mPFabsIso);
 
   fChain.SetBranchAddress("phpt[nPhotons]", phpt);
   fChain.SetBranchAddress("phpx[nPhotons]", phpx);

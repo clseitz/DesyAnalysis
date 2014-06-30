@@ -151,6 +151,8 @@ class NtpReader
     float ee[200];
     float ept[200];
     int   echarge[200];
+    float ePFrelIso[200];
+    float ePFabsIso[200];
 
     int   nMuons;
     float mpx[200];
@@ -159,7 +161,8 @@ class NtpReader
     float me[200];
     float mpt[200];
     float mcharge[200];
-    float mPFIso[200];
+    float mPFrelIso[200];
+    float mPFabsIso[200];
     int   nPhotons;
     float phpx[200];
     float phpy[200];

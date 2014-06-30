@@ -299,8 +299,11 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
        fGoodElectrons.clear(); fCleanElectrons.clear();
        nGoodElectrons=0; nCleanElectrons=0; 
+       fCleanElectronsPFrelIso.clear(); 
+       fCleanElectronsPFabsIso.clear(); 
        fGoodMuons.clear(); fCleanMuons.clear(); 
-       fCleanMuonsPFIso.clear(); 
+       fCleanMuonsPFrelIso.clear(); 
+       fCleanMuonsPFabsIso.clear(); 
        nGoodMuons=0; nCleanMuons=0;  
        fGoodPhotons.clear(); fCleanPhotons.clear();
        nGoodPhotons=0; nCleanPhotons=0;
@@ -336,16 +339,6 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
        /////DO OBJECT ID       ///////////////////////////////////////////////////////
        //Select all the objects int the event (vertex function makes some plots)
        
-       JetCorrectionUncertainty *jecUnc = 0;
-       if (! _isData) {
-	 edm::ESHandle < JetCorrectorParametersCollection > JetCorParColl;
-	 // get the jet corrector parameters collection from the global tag
-	 iSetup.get<JetCorrectionsRecord>().get(std::string("AK5PFchs"), JetCorParColl);
-	 // get the uncertainty parameters from the collection
-	 JetCorrectorParameters const & JetCorPar = (*JetCorParColl)["Uncertainty"];
-	 // instantiate the jec uncertainty object
-	 jecUnc = new JetCorrectionUncertainty(JetCorPar);
-       }
        
        //JETS already have loose JetID applied
        //	 edm::Handle<edm::View<pat::Jet> > fGoodPFJets;
@@ -366,8 +359,8 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
        
        DoVertexID(iEvent);
        if(_debug) cout<<"before jetid"<<endl;
-       DoJetID(iEvent, iSetup, _patJetType[0]);
-       DoJetID(iEvent, iSetup, _patJetType[1]);
+       DoJetID(iEvent, iSetup, _patJetType[0], 0);
+       DoJetID(iEvent, iSetup, _patJetType[1], 1);
        if(_debug)cout<<"after jetid"<<endl;
        DoElectronID(iEvent);
        if(_debug)cout<<"after eleid"<<endl;
@@ -389,7 +382,8 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
        h_nGoodPhotons->Fill(nGoodPhotons);
 
        ///////////////////////////////////////////////////
-       DoCleanUp(fGoodMuons,fGoodElectrons,fGoodPhotons,fGoodJets);
+       //cross clean the collections and also get isolation for e and mu
+       DoCleanUp(iEvent,fGoodMuons,fGoodElectrons,fGoodPhotons,fGoodJets);
        if(_debug) cout<<"after cleanup"<<endl;
        /*fCleanMuons = fGoodMuons;
        fCleanElectrons = fGoodElectrons;
@@ -415,75 +409,27 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
        //make some kinematic plots and write out variables for the tree
        
        nPFJets=nCleanPFJets;
-       std::auto_ptr<reco::GenParticleCollection> parents(new reco::GenParticleCollection());
+       //       std::auto_ptr<reco:GenParticleCollection> &parents(new reco::GenParticleCollection());
        
 
-       int counter60=0;
-       // cout<<"NJets: "<<nPFJets<<endl;
-       //const JetCorrector* corrector = JetCorrector::getJetCorrector(_jetCorrectionService, iSetup);   //Get the jet corrector from the event setup
+
        int i=0;
-       std::list<jetElem> adjJetList;
-       for (std::vector<pat::Jet>::const_iterator Jet = fCleanPFJets.begin(); Jet != fCleanPFJets.end(); ++Jet) {
-	 double jec = 1.0;//corrector->correction(Jet->correctedJet("Uncorrected"), iEvent, iSetup); 
-	 pat::Jet correctedJet = Jet->correctedJet("Uncorrected");  //copy original jet
 
-	 if (jec > 0.0)
-	   correctedJet.scaleEnergy(jec);                        // apply the correction
-	 else cout << "Bad jec " << jec << endl;
-	 if (jec < 0.1 && Jet->pt() > 30 && fabs(correctedJet.eta()) < 2.5) {
-	   cout << "Warning: Invalid(?) JEC " << jec << " uncorrected pt ";
-	   cout << Jet->correctedJet("Uncorrected").pt() << " corrected pt " << correctedJet.pt();
-	   cout << " eta " << correctedJet.eta() << endl;
-	 }
-	 bool goodJecUnc = false;
-	 if (! _isData) {
-
-	   // Apply sanity check to avoid exception for bad values
-	   if (fabs(Jet->eta()) < 5.2 && correctedJet.pt() > 0.0 && correctedJet.pt() < 20000.0) {
-	     jecUnc->setJetEta(Jet->eta());
-	     jecUnc->setJetPt(correctedJet.pt()); // the uncertainty is a function of the corrected pt
-	     goodJecUnc = true;
-	   } else cout << "Bad jet with out-of-range eta/pt. Can't get JEC unc. Eta " << Jet->eta() << " pt " << correctedJet.pt() << endl;
-	 }
-	 jetElem tmpjet;
-
-	 tmpjet.origJet = &(*Jet);
-	 tmpjet.adjJet = correctedJet.p4();
-	 double corrFactor = 1.0;
-	 tmpjet.jecUnc = 0;
-	 if (! _isData && goodJecUnc)
-	   tmpjet.jecUnc = jecUnc->getUncertainty(true);
-	 if (! _isData && (_jecAdj.compare("jerup") == 0 || _jecAdj.compare("jerdown") == 0)) {
-	   bool jerdown = (_jecAdj.compare("jerdown") == 0);
-	   corrFactor = getJERAdj(correctedJet.pt(), *Jet, jerdown);
-	 } else if (_jecAdj.compare("up") == 0)
-	   
-	   corrFactor += tmpjet.jecUnc;
-
-
-	 else if (_jecAdj.compare("down") == 0)
-	   corrFactor -= tmpjet.jecUnc;
-	 if (corrFactor != 1.0 && corrFactor > 0 && corrFactor < 5.0) // Apply factor only for reasonable values
-	   tmpjet.adjJet *= corrFactor;
-	 tmpjet.diffVec = correctedJet.p4() - tmpjet.adjJet;
-
+       for (std::vector<pat::Jet>::const_iterator Jet = fCleanPFJets.begin(); Jet != fCleanPFJets.end(); ++Jet) { 
 	 
-	 adjJetList.push_back(tmpjet);
-
-	 if(correctedJet.pt()>60.0 && fabs(correctedJet.eta())<2.5){
-	   counter60++;
-	     }
-       }
-       if (jecUnc != 0)
-	 delete jecUnc;
-       adjJetList.sort(cmpJets);
-
-       for (std::list<jetElem>::const_iterator chngJet = adjJetList.begin(); chngJet != adjJetList.end(); ++chngJet) {
-
-	 const reco::Candidate::LorentzVector *adjJet = &(chngJet->adjJet); 
-	 const pat::Jet *Jet = chngJet->origJet;
-
-	 if(counter60 >=6){
+	 h_chargedHadronEnergyFraction->Fill(Jet->correctedJet("Uncorrected").chargedHadronEnergyFraction());
+	 h_neutralHadronEnergyFraction->Fill(Jet->correctedJet("Uncorrected").neutralHadronEnergyFraction());
+	 h_neutralEmEnergyFraction->Fill(Jet->correctedJet("Uncorrected").neutralEmEnergyFraction());
+	 h_chargedEmEnergyFraction->Fill(Jet->correctedJet("Uncorrected").chargedEmEnergyFraction());
+	 h_numberOfDaughters->Fill(Jet->correctedJet("Uncorrected").numberOfDaughters());
+	 h_chargedMultiplicity->Fill(Jet->correctedJet("Uncorrected").chargedMultiplicity());
+	 if(i<6){
+	 v_PFjet_pt[i]->Fill(Jet->pt()); 
+	 v_PFjet_eta[i]->Fill(Jet->eta()); 
+	 v_PFjet_phi[i]->Fill(Jet->phi()); 
+	 v_PFjet_m[i]->Fill(Jet->mass()); 
+	 }
+	 /*if(counter60 >=6){
 	   if(i<4 && adjJet->pt()>80.0 && fabs(adjJet->eta())<2.5){
 	   v_PFjet_pt[i]->Fill(adjJet->pt()); 
 	   v_PFjet_eta[i]->Fill(adjJet->eta()); 
@@ -497,8 +443,8 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	   h_chargedMultiplicity->Fill(Jet->correctedJet("Uncorrected").chargedMultiplicity());
 
 
-	 }
-	   if(i>=4 &&i<6 && adjJet->pt()>60.0  && fabs(adjJet->eta())<2.5){
+	   }
+   if(i>=4 &&i<6 && adjJet->pt()>60.0  && fabs(adjJet->eta())<2.5){
 	   v_PFjet_pt[i]->Fill(adjJet->pt()); 
 	   v_PFjet_eta[i]->Fill(adjJet->eta()); 
 	   v_PFjet_phi[i]->Fill(adjJet->phi()); 
@@ -511,18 +457,18 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	   h_chargedMultiplicity->Fill(Jet->correctedJet("Uncorrected").chargedMultiplicity());
 	 }
 
-	 }
+	 }*/
 
 
-	 jet_PF_pt[i]=adjJet->Pt();
+	 jet_PF_pt[i]=Jet->pt();
 
-	 jet_PF_px[i]=adjJet->Px();
-	 jet_PF_py[i]=adjJet->Py();
-	 jet_PF_pz[i]=adjJet->Pz();
-	 jet_PF_e[i]=adjJet->energy();
-	 jet_PF_mass[i]=adjJet->mass();
-	 jet_PF_et[i]=adjJet->Et();
-	 jet_PF_jec_unc[i]=chngJet->jecUnc;
+	 jet_PF_px[i]=Jet->px();
+	 jet_PF_py[i]=Jet->py();
+	 jet_PF_pz[i]=Jet->pz();
+	 jet_PF_e[i]=Jet->energy();
+	 jet_PF_mass[i]=Jet->mass();
+	 jet_PF_et[i]=Jet->et();
+	 jet_PF_jec_unc[i]=1;
 
 	 jet_PF_eta[i]=Jet->eta();
 	 jet_PF_phi[i]=Jet->phi();
@@ -537,7 +483,7 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	 bdiscSSSVHP_PF[i]=Jet->bDiscriminator("simpleSecondaryVertexHighPurBJetTags");
 	 bdiscCSV_PF[i]=Jet->bDiscriminator("combinedSecondaryVertexBJetTags");
 	 bdiscJP_PF[i]=Jet->bDiscriminator("jetProbabilityBJetTags");
-	 if (!_isData) {
+	 /*if (!_isData) {
 	   if(1!=1){
 	     int jetMom = -1; 
 	     const reco::GenParticle * part = Jet->genParton();
@@ -567,45 +513,45 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	     jet_PF_JetMom[i]=jetMom;	     
 	     //	     cout<<"jetmomL: "<<jetMom<<endl;
 	   }
-	 }
+	 }*/
 	 i++;
 	 
        }
 
   nCA8PFJets=nCleanCA8PFJets;
 
-       i=0;
-       for (std::vector<pat::Jet>::const_iterator Jet = fCleanCA8PFJets.begin(); Jet != fCleanCA8PFJets.end(); ++Jet) {       
-	 cout<<"CA"<<i<<nCA8PFJets<<endl;
-	 if(i<6 && i<nCA8PFJets){
-	   v_CA8PFjet_pt[i]->Fill(Jet->pt()); 
-	   v_CA8PFjet_eta[i]->Fill(Jet->eta()); 
-	   v_CA8PFjet_phi[i]->Fill(Jet->phi()); 
-	   v_CA8PFjet_m[i]->Fill(Jet->mass()); 
-	 }
-	 jet_CA8PF_pt[i]=Jet->pt();
-	 jet_CA8PF_et[i]=Jet->et();
-	 jet_CA8PF_eta[i]=Jet->eta();
-	 jet_CA8PF_phi[i]=Jet->phi();
-	 jet_CA8PF_theta[i]=Jet->theta();
-	 jet_CA8PF_mass[i]=Jet->mass();
-	 jet_CA8PF_area[i]=Jet->jetArea();
-	 jet_CA8PF_nJetDaughters[i]=Jet->numberOfDaughters();
-
-	 jet_CA8PF_px[i]=Jet->px();
-	 jet_CA8PF_py[i]=Jet->py();
-	 jet_CA8PF_pz[i]=Jet->pz();
-	 jet_CA8PF_e[i]=Jet->energy(); 
-	 bdiscTCHE_CA8PF[i]=Jet->bDiscriminator("trackCountingHighEffBJetTags");
-	 bdiscTCHP_CA8PF[i]=Jet->bDiscriminator("trackCountingHighPurBJetTags");
-	 bdiscSSVHE_CA8PF[i]=Jet->bDiscriminator("simpleSecondaryVertexHighEffBJetTags");
-	 bdiscSSSVHP_CA8PF[i]=Jet->bDiscriminator("simpleSecondaryVertexHighPurBJetTags");
-	 bdiscCSV_CA8PF[i]=Jet->bDiscriminator("combinedSecondaryVertexBJetTags");
-	 bdiscJP_CA8PF[i]=Jet->bDiscriminator("jetProbabilityBJetTags");
-	 //	 cout<<Jet->numberOfDaughters()<<endl;
-	 i++;
-       }
-       /*
+  i=0;
+  for (std::vector<pat::Jet>::const_iterator Jet = fCleanCA8PFJets.begin(); Jet != fCleanCA8PFJets.end(); ++Jet) {       
+    
+    if(i<6){
+      v_CA8PFjet_pt[i]->Fill(Jet->pt()); 
+      v_CA8PFjet_eta[i]->Fill(Jet->eta()); 
+      v_CA8PFjet_phi[i]->Fill(Jet->phi()); 
+      v_CA8PFjet_m[i]->Fill(Jet->mass()); 
+    }
+    jet_CA8PF_pt[i]=Jet->pt();
+    jet_CA8PF_et[i]=Jet->et();
+    jet_CA8PF_eta[i]=Jet->eta();
+    jet_CA8PF_phi[i]=Jet->phi();
+    jet_CA8PF_theta[i]=Jet->theta();
+    jet_CA8PF_mass[i]=Jet->mass();
+    jet_CA8PF_area[i]=Jet->jetArea();
+    jet_CA8PF_nJetDaughters[i]=Jet->numberOfDaughters();
+    
+    jet_CA8PF_px[i]=Jet->px();
+    jet_CA8PF_py[i]=Jet->py();
+    jet_CA8PF_pz[i]=Jet->pz();
+    jet_CA8PF_e[i]=Jet->energy(); 
+    bdiscTCHE_CA8PF[i]=Jet->bDiscriminator("trackCountingHighEffBJetTags");
+    bdiscTCHP_CA8PF[i]=Jet->bDiscriminator("trackCountingHighPurBJetTags");
+    bdiscSSVHE_CA8PF[i]=Jet->bDiscriminator("simpleSecondaryVertexHighEffBJetTags");
+    bdiscSSSVHP_CA8PF[i]=Jet->bDiscriminator("simpleSecondaryVertexHighPurBJetTags");
+    bdiscCSV_CA8PF[i]=Jet->bDiscriminator("combinedSecondaryVertexBJetTags");
+    bdiscJP_CA8PF[i]=Jet->bDiscriminator("jetProbabilityBJetTags");
+    //	 cout<<Jet->numberOfDaughters()<<endl;
+    i++;
+  }
+  /*
        nCA8PrunedPFJets=nCleanCA8PrunedPFJets;
        i=0;
        for (std::vector<pat::Jet>::const_iterator Jet = fCleanCA8PrunedPFJets->begin(); Jet != fCleanCA8PrunedPFJets->end(); ++Jet) {       
@@ -687,6 +633,8 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	 epz[i]=fCleanElectrons[i].pz();
 	 ee[i]=fCleanElectrons[i].energy(); 
 	 echarge[i]=fCleanElectrons[i].charge();
+	 ePFrelIso[i]=fCleanElectronsPFrelIso[i];
+	 ePFabsIso[i]=fCleanElectronsPFabsIso[i];
      
        }
        nMuons=nCleanMuons;
@@ -704,7 +652,8 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	 mpz[i]=fCleanMuons[i].pz();
 	 me[i]=fCleanMuons[i].energy();
 	 mcharge[i]=fCleanMuons[i].charge();
-	 //mPFIso[i]=fCleanMuonsPFIso[i];
+	 mPFrelIso[i]=fCleanMuonsPFrelIso[i];
+	 mPFabsIso[i]=fCleanMuonsPFabsIso[i];
 
      
        }
@@ -720,26 +669,9 @@ Ntupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	 phpy[i]=fCleanPhotons[i].py();
 	 phpz[i]=fCleanPhotons[i].pz();
 	 phe[i]=fCleanPhotons[i].energy(); 
-     
+	 
        }
 
-			 reco::Candidate::LorentzVector met = fMET.p4();
-			 if (! _isData) {
-				 for (std::list<jetElem>::const_iterator chngJet = adjJetList.begin(); chngJet != adjJetList.end(); ++chngJet) {
-					met += chngJet->diffVec;
-				 }
-				 met.SetPz(0.0);  // Make sure no longitudinal component
-				 met.SetE(met.Pt()); // Make sure it stays massless
-			 }
-					  
-       h_MET->Fill(met.Et());
-       pfMET= met.Et();
-       pfMETphi=met.Phi();
-			 /*
-       h_MET->Fill(fMET.et());
-       pfMET= fMET.et();
-       pfMETphi=fMET.phi();
-			 */
 
        GetMCTruth(iEvent);
        //       cout<<"--------------------"<<endl;
@@ -1185,7 +1117,7 @@ vector<string> Ntupler::split(string fstring, string splitter)
 
 
 void 
-Ntupler::DoJetID(const edm::Event& iEvent,const edm::EventSetup& iSetup, std::string PatJetType){
+Ntupler::DoJetID(const edm::Event& iEvent,const edm::EventSetup& iSetup, std::string PatJetType, int type){
   // Jet Handle 
   //  for (unsigned int i =0; i < _patJetType.size(); i++){
 
@@ -1200,8 +1132,8 @@ Ntupler::DoJetID(const edm::Event& iEvent,const edm::EventSetup& iSetup, std::st
     }
      
     // Choose jets based on pt and abs(eta)
-    if ((*PatJets)[j].pt()        > 20.0  &&
-	fabs((*PatJets)[j].eta()) < 3.0)
+    if ((*PatJets)[j].pt()        >= 30.0  &&
+	fabs((*PatJets)[j].eta()) <= 2.4)
       {
 	if (_debug) std::cout << "Jet #" << j << " Passes pT cut of " << _jetptcut 
 			      << " and eTa cut of " << _etacut << " with pT: " 
@@ -1209,22 +1141,23 @@ Ntupler::DoJetID(const edm::Event& iEvent,const edm::EventSetup& iSetup, std::st
 			      << (*PatJets)[j].eta() << std::endl;
 	bool jetID = false;
 
-	if (PatJetType == "slimmedJetsCA8"){
+       	if (PatJetType == "slimmedJetsCA8"){
 	  jetID=true;
 	}
 	else {
 	  //ParticleFlow ID
-	     jetID = 
-	       ((*PatJets)[j].correctedJet("Uncorrected").neutralHadronEnergyFraction()   < 0.99 && 
-		(*PatJets)[j].correctedJet("Uncorrected").neutralEmEnergyFraction()       < 0.99 &&
-		(*PatJets)[j].correctedJet("Uncorrected").numberOfDaughters()             > 1    &&
-		(fabs((*PatJets)[j].eta())                    > 2.4  ||
-		 ((*PatJets)[j].correctedJet("Uncorrected").chargedHadronEnergyFraction() > 0.   &&
-		  (*PatJets)[j].correctedJet("Uncorrected").chargedEmEnergyFraction()     < 0.99 &&
-		  (*PatJets)[j].correctedJet("Uncorrected").chargedMultiplicity()         > 0.))); 
-	     cout<<"bla"<<endl;
+	  jetID = 
+	    ((*PatJets)[j].correctedJet("Uncorrected").neutralHadronEnergyFraction()   < 0.99 && 
+	     (*PatJets)[j].correctedJet("Uncorrected").neutralEmEnergyFraction()       < 0.99 &&
+	     (*PatJets)[j].correctedJet("Uncorrected").numberOfDaughters()             > 1   &&
+	  
+	    (fabs((*PatJets)[j].eta())                    > 2.4  ||
+	    ((*PatJets)[j].correctedJet("Uncorrected").chargedHadronEnergyFraction() > 0.   &&
+	    (*PatJets)[j].correctedJet("Uncorrected").chargedEmEnergyFraction()     < 0.99 &&
+	    (*PatJets)[j].correctedJet("Uncorrected").chargedMultiplicity()         > 0.)));
+	  
 	}
-	 
+	
 	if(jetID){
 	  if (_debug) std::cout<<"After JetID"
 			       << "Jet #" << j << " Passes pT cut of " << _jetptcut 
@@ -1233,12 +1166,12 @@ Ntupler::DoJetID(const edm::Event& iEvent,const edm::EventSetup& iSetup, std::st
 			       << (*PatJets)[j].eta() << std::endl;
 	     
 	     
-	  if(PatJetType == "slimmedJets"){
+	  if(type == 0){
 	    fGoodPFJets.push_back((*PatJets)[j]);	   
 	    nGoodPFJets++; 
 	  }
 	  
-	  if(PatJetType == "slimmedJetsCA8"){
+	  if(type == 1){
 	    fGoodCA8PFJets.push_back((*PatJets)[j]);	   
 	    nGoodCA8PFJets++; 
 	  }
@@ -1330,24 +1263,36 @@ Ntupler::DoElectronID(const edm::Event& iEvent){
 
   // Loop over all electrons
   for (std::vector<pat::Electron>::const_iterator Electron = PatElectrons->begin(); Electron != PatElectrons->end(); ++Electron) {
-
+    
     //calculate isolation
-    edm::Handle<double> rhoHandle;
-    iEvent.getByLabel(_rhoIsoInputTag, rhoHandle);
-    double rhoIso = std::max(*(rhoHandle.product()), 0.0);
-    double scEta = Electron->superCluster()->eta();
-
-    double AEff = ElectronEffectiveArea::GetElectronEffectiveArea(ElectronEffectiveArea::kEleGammaAndNeutralHadronIso03, scEta, ElectronEffectiveArea::kEleEAData2012);
 
     
+    if (Electron->pt() < 10.0) continue;
+    if (fabs(Electron->superCluster()->eta()) > 2.5) continue;
+    if (fabs(Electron->superCluster()->eta()) > 1.4442 && fabs(Electron->superCluster()->eta())< 1.566) continue;
+    
+    
+    if (fabs(Electron->gsfTrack()->dxy((*primaryVertices)[0].position())) > 0.02) continue;
+      
 
-
-    double chIso = Electron->chargedHadronIso();
-    double nhIso = Electron->neutralHadronIso();
-    double phIso = Electron->photonIso();
-    double relIso = ( chIso + max(0.0, nhIso + phIso - rhoIso*AEff) )/ Electron->ecalDrivenMomentum().pt(); 
-
-     edm::Handle<reco::BeamSpot> bsHandle;
+    
+    // Barrel & endcap.. if in between say bye bye
+    if (fabs(Electron->superCluster()->eta()) < 1.479) {
+    if (Electron->scSigmaIEtaIEta() > 0.01) continue;
+    if (fabs(Electron->deltaPhiSuperClusterTrackAtVtx()) > 0.06) continue;
+    if (fabs(Electron->deltaEtaSuperClusterTrackAtVtx()) > 0.004) continue;
+    if (Electron->hcalOverEcal() > 0.12) continue;
+    } else if (fabs(Electron->superCluster()->eta()) > 1.479) {
+    if (Electron->scSigmaIEtaIEta() > 0.03) continue;
+    if (fabs(Electron->deltaPhiSuperClusterTrackAtVtx()) > 0.03) continue;
+    if (fabs(Electron->deltaEtaSuperClusterTrackAtVtx()) > 0.007) continue;
+    if (Electron->hcalOverEcal() > 0.1) continue;
+    } else {
+    // crackhead
+    std::cerr << "ERROR: Electron selection. you should never see this message" << std::endl;
+    continue;
+    }
+    edm::Handle<reco::BeamSpot> bsHandle;
     iEvent.getByLabel("offlineBeamSpot", bsHandle);
     const reco::BeamSpot &beamspot = *bsHandle.product();
     
@@ -1357,44 +1302,9 @@ Ntupler::DoElectronID(const edm::Event& iEvent){
 
     //reco::GsfElectron const *gsfele = dynamic_cast<reco::GsfElectron const *>((Electron->originalObjectRef().get()));
     bool isconversion = ConversionTools::hasMatchedConversion( *Electron , hConversions, beamspot.position());
-
-    if(_debug)
-      {    
-	cout<<"chIso "<<chIso<<" nhIso "<<nhIso<<" phIso "<< phIso<<" rhoIso "<< rhoIso<< "AEff "<< AEff<<endl;
-cout<<"conversion : "<<isconversion<<endl;
-	cout<<"relIso "<<relIso<<" pt "<<Electron->pt()<<" "<<Electron->ecalDrivenMomentum().pt()<<" eta "<<fabs(Electron->superCluster()->eta())<<
-      "vertex"<<fabs(Electron->gsfTrack()->dxy((*primaryVertices)[0].position()))<<endl;
-      }
-    // Global cuts
-    if (relIso > 0.15) continue;
-    cout<<"passed reliso"<<endl;
-    if (Electron->pt() < 10.0) continue;
-    if (fabs(Electron->superCluster()->eta()) > 2.5) continue;
-      if (fabs(Electron->superCluster()->eta()) > 1.4442 && fabs(Electron->superCluster()->eta())< 1.566) continue;
-    if (fabs(Electron->gsfTrack()->dxy((*primaryVertices)[0].position())) > 0.02) continue;
-   
-    cout<<"passed basic cuts"<<endl;
-
-    // Barrel & endcap.. if in between say bye bye
-     if (fabs(Electron->superCluster()->eta()) < 1.479) {
-      if (Electron->scSigmaIEtaIEta() > 0.01) continue;
-      if (fabs(Electron->deltaPhiSuperClusterTrackAtVtx()) > 0.06) continue;
-      if (fabs(Electron->deltaEtaSuperClusterTrackAtVtx()) > 0.004) continue;
-      if (Electron->hcalOverEcal() > 0.12) continue;
-    } else if (fabs(Electron->superCluster()->eta()) > 1.479) {
-      if (Electron->scSigmaIEtaIEta() > 0.03) continue;
-      if (fabs(Electron->deltaPhiSuperClusterTrackAtVtx()) > 0.03) continue;
-      if (fabs(Electron->deltaEtaSuperClusterTrackAtVtx()) > 0.007) continue;
-      if (Electron->hcalOverEcal() > 0.1) continue;
-    } else {
-      // crackhead
-      std::cerr << "ERROR: Electron selection. you should never see this message" << std::endl;
-      continue;
-      }
-
-     if(isconversion) continue;  
-    cout<<"passed all"<<endl;
-
+    if(isconversion) continue;  
+  
+    
     fGoodElectrons.push_back(*Electron);
     nGoodElectrons++;
 
@@ -1423,58 +1333,36 @@ Ntupler::DoMuonID(const edm::Event& iEvent){
 
   edm::Handle<reco::VertexCollection>  primaryVertices;
   iEvent.getByLabel( _primaryVertex, primaryVertices);
-  cout<<primaryVertices->size()<<" "<<((*primaryVertices)[0].position())<<endl;
+  //  cout<<primaryVertices->size()<<" "<<((*primaryVertices)[0].position())<<endl;
 
   
   for (std::vector<pat::Muon>::const_iterator Muon = PatMuons->begin(); Muon != PatMuons->end(); ++Muon) {
-    float pfIsoCharged = Muon->pfIsolationR03().sumChargedHadronPt;
-    float pfIsoNeutral = Muon->pfIsolationR03().sumNeutralHadronEt;
-    float pfIsoPhoton  = Muon->pfIsolationR03().sumPhotonEt;
-    float pfIsoPU      = Muon->pfIsolationR03().sumPUPt;      
-    float  absoluteIsolation = pfIsoCharged + max((float) 0.0,(float) (pfIsoNeutral + pfIsoPhoton- 0.5*pfIsoPU ));
-    if(_debug) {
-      cout<<"pfIsoCharged: "<<pfIsoCharged<<" pfIsoNeutral: "<<pfIsoNeutral<<"  pfIsoPhoton: "<<pfIsoPhoton<<" pfIsoPU: "<<pfIsoPU<<" absoluteIsolation: "<< absoluteIsolation<<endl;
-    cout<<" pT: "<< Muon->pt() << " eta: "<< fabs(Muon->eta()) << " reliso: "<< absoluteIsolation/Muon->pt()<<endl;
-    }
-    //Muond ID:
-
-    //muon ID doesn't work yet in miniAOD
-  
-    //     if ( !muon::isTightMuon(*recMu,(*primaryVertices)[0]) ) continue;
     
-    // cout<<"is good muon: "<<muon::isTightMuon(*Muon,(*primaryVertices)[0])<<endl;
+   
+      // cout<<"is good muon: "<<muon::isTightMuon(*Muon,(*primaryVertices)[0])<<endl;
     if (!Muon->isGlobalMuon()) continue;
-    cout<<"1"<<endl;
     if (!Muon->isPFMuon()) continue;
-    cout<<"2"<<endl;
     if (!(Muon->globalTrack()->normalizedChi2() < 10.)) continue;
-    cout<<"3"<<endl;
     if (!(Muon->globalTrack()->hitPattern().numberOfValidMuonHits() > 0)) continue;
-    cout<<"4"<<endl;
     if (!(Muon->numberOfMatchedStations() > 1)) continue;
     //muonbestTrack doesn't work properly with miniAOD, segmentation violation seems to occur for certain muons
     //use innterTrack instead
     if (!(fabs(Muon->innerTrack()->dxy((*primaryVertices)[0].position())) < 0.2 )) continue;
-    cout<<"6"<<endl;
     if (!(fabs(Muon->innerTrack()->dz((*primaryVertices)[0].position())) < 0.5)) continue;
-    cout<<"7"<<endl;
-
     if (!(Muon->innerTrack()->hitPattern().numberOfValidPixelHits() > 0)) continue;
-    cout<<"8"<<endl;
     if (!(Muon->track()->hitPattern().trackerLayersWithMeasurement() > 5)) continue;
-    cout<<"9"<<endl;
-
+  
+      
+    
     
 
     if ( Muon->pt() < 10.0 ) continue;
 
     if ( fabs(Muon->eta()) > 2.4 ) continue;
 
-    if ( absoluteIsolation > 5.0 ) continue;
 
-    if ( absoluteIsolation/Muon->pt() > 0.15 ) continue;
 
-    cout<<"is good muon: "<<endl;
+    
     if (!Muon->isGlobalMuon()) continue;
       fGoodMuons.push_back(*Muon);    
       nGoodMuons++;
@@ -1482,49 +1370,6 @@ Ntupler::DoMuonID(const edm::Event& iEvent){
   }
   
   return;
-}
-
-void
-Ntupler::GetPFIso(vector<Muon >fCleanMuons){
-
-for (size_t im = 0; im != fCleanMuons.size(); ++im) {
-    // Get the PFGamma isolation                                                                                                                                                                                                
-  pat::Muon Muon=fCleanMuons[im];
-  //  reco::PFCandidateRef PFMuon = Muon.pfCandidateRef();
-    float PFGammaIso = -999;
-    const reco::IsoDeposit * PFGammaIsolation = Muon.isoDeposit(pat::PfGammaIso);
-    if (PFGammaIsolation) {
-      PFGammaIso = PFGammaIsolation->depositWithin(0.3);
-    } else {
-      std::cerr << "ERROR: Cannot find pat::PfGammaIso" << std::endl;
-    }
-
-    // Get the PFNeutralHad isolation                                                                                                                                                                                           
-    float PFNeutralHadronIso = -999;
-    const reco::IsoDeposit * PFNeutralHadronIsolaton = Muon.isoDeposit(pat::PfNeutralHadronIso);
-    if (PFNeutralHadronIsolaton) {
-      PFNeutralHadronIso = PFNeutralHadronIsolaton->depositWithin(0.3);
-    } else {
-      std::cerr << "ERROR: Cannot find pat::PfNeutralHadronIso" << std::endl;
-    }
-
-    // Get the PFChargedHad isolation                                                                                                                                                                                           
-    float PFChargedHadronIso = -999;
-    const reco::IsoDeposit * PFChargedHadronIsolaton = Muon.isoDeposit(pat::PfChargedHadronIso);
-    if (PFChargedHadronIsolaton) {
-      PFChargedHadronIso = PFChargedHadronIsolaton->depositWithin(0.3);
-    } else {
-      std::cerr << "ERROR: Cannot find pat::PfChargedHadronIso" << std::endl;
-    }
-
-    // The isolation we will use for selection                                                                                                                                                                                  
-    float const PFIso = (PFGammaIsolation && PFNeutralHadronIsolaton && PFChargedHadronIsolaton) ?
-      (PFGammaIso + PFNeutralHadronIso + PFChargedHadronIso) / Muon.pt() : 99999;
-
-    fCleanMuonsPFIso.push_back(PFIso);
-
-  }
-
 }
 
 void
@@ -1537,8 +1382,17 @@ Ntupler::DoMETID(const edm::Event& iEvent){
   return;
 }
 void
-Ntupler::DoCleanUp(vector<pat::Muon >fGoodMuons,vector<pat::Electron >fGoodElectrons,vector<pat::Photon >fGoodPhotons,vector<pat::Jet >fGoodJets){
+Ntupler::DoCleanUp(const edm::Event& iEvent,vector<pat::Muon >fGoodMuons,vector<pat::Electron >fGoodElectrons,vector<pat::Photon >fGoodPhotons,vector<pat::Jet >fGoodJets){
   for (size_t im = 0; im != fGoodMuons.size(); ++im) {
+   float pfIsoCharged = fGoodMuons[im].pfIsolationR03().sumChargedHadronPt;
+    float pfIsoNeutral = fGoodMuons[im].pfIsolationR03().sumNeutralHadronEt;
+    float pfIsoPhoton  = fGoodMuons[im].pfIsolationR03().sumPhotonEt;
+    float pfIsoPU      = fGoodMuons[im].pfIsolationR03().sumPUPt;      
+    float  absoluteIsolation = pfIsoCharged + max((float) 0.0,(float) (pfIsoNeutral + pfIsoPhoton- 0.5*pfIsoPU ));
+    float relIso =  absoluteIsolation/fGoodMuons[im].pt();
+    fCleanMuonsPFrelIso.push_back(relIso);
+    fCleanMuonsPFabsIso.push_back(relIso*fGoodMuons[im].pt());
+ 
     fCleanMuons.push_back(fGoodMuons[im] );
     nCleanMuons++;
   }
@@ -1555,8 +1409,26 @@ Ntupler::DoCleanUp(vector<pat::Muon >fGoodMuons,vector<pat::Electron >fGoodElect
       }
     }
     if (!HasOverlap) {
-      fCleanElectrons.push_back( fGoodElectrons[ie]);
-      nCleanElectrons++;
+      
+      //calculate isolation
+    edm::Handle<double> rhoHandle;
+    iEvent.getByLabel(_rhoIsoInputTag, rhoHandle);
+    double rhoIso = std::max(*(rhoHandle.product()), 0.0);
+    double scEta = fGoodElectrons[ie].superCluster()->eta();
+    double AEff = ElectronEffectiveArea::GetElectronEffectiveArea(ElectronEffectiveArea::kEleGammaAndNeutralHadronIso03, scEta, ElectronEffectiveArea::kEleEAData2012);   
+    double chIso = fGoodElectrons[ie].chargedHadronIso();
+    double nhIso = fGoodElectrons[ie].neutralHadronIso();
+    double phIso = fGoodElectrons[ie].photonIso();
+    double relIso = ( chIso + max(0.0, nhIso + phIso - rhoIso*AEff) )/ fGoodElectrons[ie].ecalDrivenMomentum().pt(); 
+    if(_debug)
+      {    
+	cout<<"chIso "<<chIso<<" nhIso "<<nhIso<<" phIso "<< phIso<<" rhoIso "<< rhoIso<< "AEff "<< AEff<<endl;
+	cout<<"relIso "<<relIso<<endl;
+      }
+    fCleanElectronsPFrelIso.push_back(relIso);
+    fCleanElectronsPFabsIso.push_back(relIso*fGoodElectrons[ie].ecalDrivenMomentum().pt());
+    fCleanElectrons.push_back( fGoodElectrons[ie]);
+    nCleanElectrons++;
     }
   }
 

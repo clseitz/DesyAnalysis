@@ -41,7 +41,7 @@ process.prefer(jetcorrserv)
 
 
 process.maxEvents = cms.untracked.PSet(
-#      input = cms.untracked.int32(200)
+#      input = cms.untracked.int32(5)
      input = cms.untracked.int32(-1)
      )
 
@@ -50,68 +50,17 @@ process.source = cms.Source("PoolSource",
                             duplicateCheckMode = cms.untracked.string('noDuplicateCheck')
                             )
 
-inputJetCorrLabelAK7PFchs = ('AK7PFchs', ['L1FastJet', 'L2Relative', 'L3Absolute'])
 
-from RecoJets.JetProducers.ca4PFJets_cfi import ca4PFJets
-process.ca8PFJetsPFlow = ca4PFJets.clone(
-    rParam = cms.double(0.8),
-    src = cms.InputTag('packedPFCandidates'),
-    doAreaFastjet = cms.bool(True),
-    doRhoFastjet = cms.bool(True),
-    Rho_EtaMax = cms.double(6.0),
-    Ghost_EtaMax = cms.double(7.0)
-    )
-from PhysicsTools.PatAlgos.tools.jetTools import addJetCollection
-#addJetCollection(process,
-#                 labelName = 'slimmedJetsCA8',
-#                 jetSource = cms.InputTag('ca8PFJetsPFlow'),
-#                 trackSource = cms.InputTag('unpackedTracksAndVertices'),
-#                 pvSource = cms.InputTag('unpackedTracksAndVertices'),
-#                 jetCorrections = inputJetCorrLabelAK7PFchs
-#                 )
-
-
-from RecoJets.JetProducers.ak5PFJets_cfi import ak5PFJets
-from RecoJets.JetProducers.ak5GenJets_cfi import ak5GenJets
-
-process.chs = cms.EDFilter("CandPtrSelector", src = cms.InputTag("packedPFCandidates"), cut = cms.string("fromPV"))
-
-process.ak5PFJets = ak5PFJets.clone(src = 'packedPFCandidates', doAreaFastjet = True) # no idea while doArea is false by default, but it's True in RECO so we have to set it
-process.ak5PFJetsCHS = ak5PFJets.clone(src = 'chs', doAreaFastjet = True) # no idea while doArea is false by default, but it's True in RECO so we have to set it
-process.ak5GenJets = ak5GenJets.clone(src = 'packedGenParticles')
-
-
-from PhysicsTools.PatAlgos.tools.jetTools import addJetCollection
-addJetCollection(
-   process,
-   postfix   = "",
-   labelName = 'AK5PFCHS',
-   jetSource = cms.InputTag('ak5PFJetsCHS'),
-   trackSource = cms.InputTag('unpackedTracksAndVertices'),
-   pvSource = cms.InputTag('unpackedTracksAndVertices'),
-   jetCorrections = ('AK5PFchs', cms.vstring(['L1FastJet', 'L2Relative', 'L3Absolute']), 'Type-2'),
-   btagDiscriminators = [      'combinedSecondaryVertexBJetTags'     ]
-   )
-
-
-##process.source = cms.Source("PoolSource",
-##  skipEvents = cms.untracked.uint32(0),
-##  fileNames = cms.untracked.vstring(
-##    '',
-##    ''
-##    ),
-##  duplicateCheckMode = cms.untracked.string('noDuplicateCheck')
-##)
 
 process.data2 = cms.EDAnalyzer('Ntupler',
                                sumPtMin       = cms.untracked.double(0.0),
-                               debug          = cms.untracked.bool(True),
+                               debug          = cms.untracked.bool(False),
                                NtuplePlots = cms.untracked.string(this_fout0),
                                NtupleTree= cms.untracked.string(this_fout1),
                                #PatJetType     = cms.untracked.vstring('goodPatJetsCA8PF'),
                                #PatJetType     = cms.untracked.vstring('goodPatJetsPFlow'),
                                #PatJetType     = cms.untracked.vstring('goodPatJetsCA8PF'),
-                               PatJetType = cms.untracked.vstring('slimmedJets','AK5PFCHS','slimmedJetsCA8'),
+                               PatJetType = cms.untracked.vstring('slimmedJets','patJetsAK5PFCHS','slimmedJetsCA8'),
                                PrimaryVertex = cms.untracked.string('offlineSlimmedPrimaryVertices'),
                                METtype = cms.untracked.string('slimmedMETs'),
                                htTrigger      = cms.untracked.string('HLT_HT360_v2'),
@@ -156,8 +105,94 @@ process.data2 = cms.EDAnalyzer('Ntupler',
                                )
 
 
-process.p = cms.Sequence(process.data2)
 
 
-#process.endpath= cms.EndPath(process.OUT)
-process.p0 = cms.Path( process.p)
+
+
+
+
+
+from RecoJets.JetProducers.ak5PFJets_cfi import ak5PFJets
+from RecoJets.JetProducers.ak5GenJets_cfi import ak5GenJets
+
+
+process.chs = cms.EDFilter("CandPtrSelector", src = cms.InputTag("packedPFCandidates"), cut = cms.string("fromPV"))
+
+process.ak5PFJets = ak5PFJets.clone(src = 'packedPFCandidates', doAreaFastjet = True) # no idea while doArea is false by default, but it's True in RECO so we have to set it
+process.ak5PFJetsCHS = ak5PFJets.clone(src = 'chs', doAreaFastjet = True) # no idea while doArea is false by default, but it's True in RECO so we have to set it
+process.ak5GenJets = ak5GenJets.clone(src = 'packedGenParticles')
+
+process.load("PhysicsTools.PatAlgos.producersLayer1.patCandidates_cff")
+process.load("Configuration.EventContent.EventContent_cff")
+process.load('Configuration.StandardSequences.Geometry_cff')
+process.load('Configuration.StandardSequences.MagneticField_38T_cff')
+process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
+
+
+process.patJets.addJetCharge   = False
+process.patJets.addBTagInfo    = True
+process.patJets.getJetMCFlavour = False
+process.patJets.addAssociatedTracks = False
+process.patJetPartonMatch.matched = "prunedGenParticles"
+process.patJetCorrFactors.primaryVertices = "offlineSlimmedPrimaryVertices"
+
+
+process.load('RecoBTag.Configuration.RecoBTag_cff')
+process.load('RecoJets.Configuration.RecoJetAssociations_cff')
+process.load('PhysicsTools.PatAlgos.slimming.unpackedTracksAndVertices_cfi')
+process.ak5JetTracksAssociatorAtVertexPF.jets = cms.InputTag("ak5PFJetsCHS")
+process.ak5JetTracksAssociatorAtVertexPF.tracks = cms.InputTag("unpackedTracksAndVertices")
+process.impactParameterTagInfos.primaryVertex = cms.InputTag("unpackedTracksAndVertices")
+process.inclusiveSecondaryVertexFinderTagInfos.extSVCollection = cms.InputTag("unpackedTracksAndVertices","secondary","")
+process.combinedSecondaryVertex.trackMultiplicityMin = 1 #silly sv, uses un filtered tracks.. i.e. any pt
+
+process.options = cms.untracked.PSet( wantSummary = cms.untracked.bool(True) )
+process.options.allowUnscheduled = cms.untracked.bool(True)
+
+from PhysicsTools.PatAlgos.tools.jetTools import addJetCollection
+addJetCollection(
+   process,
+   postfix   = "",
+   labelName = 'AK5PFCHS',
+   jetSource = cms.InputTag('ak5PFJetsCHS'),
+   trackSource = cms.InputTag('unpackedTracksAndVertices'), 	
+   pvSource = cms.InputTag('unpackedTracksAndVertices'), 
+   jetCorrections = ('AK5PFchs', cms.vstring(['L1FastJet', 'L2Relative', 'L3Absolute']), 'Type-2'),
+   btagDiscriminators = [      'combinedSecondaryVertexBJetTags'     ]
+   )
+
+
+###############################
+####make CA8 jets
+inputJetCorrLabelAK7PFchs = ('AK7PFchs', ['L1FastJet', 'L2Relative', 'L3Absolute'])
+
+from RecoJets.JetProducers.ca4PFJets_cfi import ca4PFJets
+
+process.ca8PFJetsPFlow = ca4PFJets.clone(
+    rParam = cms.double(0.8),
+    src = cms.InputTag('packedPFCandidates'),
+    doAreaFastjet = cms.bool(True),
+    doRhoFastjet = cms.bool(True),
+    Rho_EtaMax = cms.double(6.0),
+    Ghost_EtaMax = cms.double(7.0)
+    )
+
+addJetCollection(
+    process,
+    postfix   = "",
+    labelName = 'CA8PF',
+    jetSource = cms.InputTag('ca8PFJetsPFlow'),
+    trackSource = cms.InputTag('unpackedTracksAndVertices'),
+    pvSource = cms.InputTag('unpackedTracksAndVertices'),
+    jetCorrections = ('AK5PFchs', cms.vstring(['L1FastJet', 'L2Relative', 'L3Absolute']), 'Type-2'),
+    btagDiscriminators = [      'combinedSecondaryVertexBJetTags'     ]
+    )
+
+process.p0 = cms.Path(process.data2)
+
+process.OUT = cms.OutputModule("PoolOutputModule",
+                               fileName = cms.untracked.string('test.root'),
+                               outputCommands = cms.untracked.vstring(['drop *','keep patJets_*_*_*','keep *_patJetsAK5PFCHS_*_*','keep *_*_*_PAT','keep recoTracks_unp*_*_*','keep recoVertexs_unp*_*_*']\
+                                                                      )
+                               )
+process.endpath= cms.EndPath(process.OUT)

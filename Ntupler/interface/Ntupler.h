@@ -71,14 +71,14 @@ class Ntupler : public edm::EDAnalyzer, public NtpReader {
 
   // ----------member data ---------------------------                                                                                                                         
   void UseJson( vector<int > GoodRuns, vector<int > GoodLumiStart,  vector<int > GoodLumiEnd,  Int_t nGoodRuns, int run, int lumis );
-  void DoJetID(const edm::Event&,const edm::EventSetup& iSetup, std::string PatJetType);
+  void DoJetID(const edm::Event&,const edm::EventSetup& iSetup, std::string PatJetType, int type);
   void GetTruePileUp(const edm::Event& iEvent);
   void DoVertexID(const edm::Event&);
   void DoElectronID(const edm::Event&);
   void DoMuonID(const edm::Event&);
   void DoPhotonID(const edm::Event&);
   void DoMETID(const edm::Event&);
-  void DoCleanUp(vector<Muon >fGoodMuons,vector<pat::Electron >fGoodElectrons,vector<Photon >fGoodPhotons,vector<Jet >fGoodJets);
+  void DoCleanUp(const edm::Event&,vector<Muon >fGoodMuons,vector<pat::Electron >fGoodElectrons,vector<Photon >fGoodPhotons,vector<Jet >fGoodJets);
   void GetPFIso(vector<Muon >fCleanMuons);
   void GetMCTruth(const edm::Event&);
   void MakeTriplets(std::vector<pat::Jet >fCleanJets); 
@@ -220,11 +220,14 @@ class Ntupler : public edm::EDAnalyzer, public NtpReader {
   //electron collection
   std::vector<pat::Electron> fGoodElectrons;
   std::vector<pat::Electron> fCleanElectrons;
-  
+  std::vector<float >      fCleanElectronsPFrelIso;
+  std::vector<float >      fCleanElectronsPFabsIso;
+
   //muon collection
   std::vector<pat::Muon>     fGoodMuons;
   std::vector<pat::Muon>      fCleanMuons;
-  std::vector<float >      fCleanMuonsPFIso;
+  std::vector<float >      fCleanMuonsPFrelIso;
+  std::vector<float >      fCleanMuonsPFabsIso;
   std::vector<pat::Muon>      fFakeMuons;
   
   //photon collection
